@@ -1,0 +1,5 @@
+{
+  "name": "Copy of Torrent Wave",
+  "description": "A sleek and modern user interface to search for torrents using a Jackett backend. It provides a clean, responsive table to display search results with key information like size, seeders, and peers.",
+  "requestFramePermissions": []
+}
