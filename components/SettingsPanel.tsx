@@ -57,27 +57,27 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ initialUrl, initialApiKey
         className="relative bg-slate-800 border border-slate-700 rounded-lg shadow-xl w-full max-w-lg p-6 mx-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="settings-title" className="text-2xl font-bold text-slate-100 mb-4">Jackett Configuration</h2>
+        <h2 id="settings-title" className="text-2xl font-bold text-slate-100 mb-4">Prowlarr Configuration</h2>
         
         <div className="space-y-4">
           <div>
-            <label htmlFor="jackett-url" className="block text-sm font-medium text-slate-400 mb-1">
-              Jackett Server URL
+            <label htmlFor="prowlarr-url" className="block text-sm font-medium text-slate-400 mb-1">
+              Prowlarr Server URL
             </label>
             <input
-              id="jackett-url"
+              id="prowlarr-url"
               type="text"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="e.g., http://192.168.1.100:9117"
+              placeholder="e.g., http://192.168.1.100:9696"
               className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
             />
              <div className="mt-3 p-3 bg-slate-700/50 border border-slate-600 rounded-md text-sm text-slate-400">
               <p className="font-semibold text-slate-300 mb-2">Connecting from a different device?</p>
               <ul className="list-disc list-inside space-y-1">
-                <li>Replace <code className="text-xs bg-slate-900 px-1.5 py-0.5 rounded">localhost</code> with your server's local network IP address (e.g., <code className="text-xs bg-slate-900 px-1.5 py-0.5 rounded">http://192.168.1.50:9117</code>).</li>
+                <li>Replace <code className="text-xs bg-slate-900 px-1.5 py-0.5 rounded">localhost</code> with your server's local network IP address (e.g., <code className="text-xs bg-slate-900 px-1.5 py-0.5 rounded">http://192.168.1.50:9696</code>).</li>
                 <li>
-                  To fix connection errors, add this site's URL to the <strong className="text-slate-300">"CORS Whitelist"</strong> field in your Jackett server's settings.
+                  To fix connection errors, you may need to configure Prowlarr's CORS settings if not using a reverse proxy.
                 </li>
               </ul>
             </div>
@@ -91,7 +91,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ initialUrl, initialApiKey
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder="Your Jackett API key"
+              placeholder="Your Prowlarr API key"
               className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
             />
           </div>

@@ -6,9 +6,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': {
-        target: 'http://localhost:9117', // Your local or networked Jackett server
+      '/prowlarr': {
+        target: 'http://localhost:9696', // Your local Prowlarr server
         changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/prowlarr/, ''),
       }
     }
   }

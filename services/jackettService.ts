@@ -1,5 +1,7 @@
 import type { TorrentResult, Category } from '../types';
 
+// NOTE: This service has been updated to use the Prowlarr API.
+
 const handleFetchError = (error: unknown): Error => {
   if (error instanceof Error) {
     return error;
@@ -7,108 +9,70 @@ const handleFetchError = (error: unknown): Error => {
   return new Error('An unknown error occurred during fetch.');
 };
 
+const getApiHeaders = (apiKey: string) => {
+  const headers = new Headers();
+  headers.append('X-Api-Key', apiKey);
+  return headers;
+};
+
 export const fetchCategories = async (
   apiKey: string
 ): Promise<Category[]> => {
-  // The URL is now a relative path, which will be handled by the Nginx reverse proxy.
-  const url = `/api/api/v2.0/indexers/all/results/torznab/api?t=caps&apikey=${apiKey}`;
+  // Prowlarr API endpoint for categories. Proxied via /prowlarr/.
+  const url = `/prowlarr/api/v1/definition/category`;
 
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { headers: getApiHeaders(apiKey) });
     if (!response.ok) {
+       if (response.status === 401) {
+            throw new Error('Invalid API Key. Please check your Prowlarr settings.');
+       }
       throw new Error(`Failed to fetch categories with status: ${response.status}`);
     }
-    const xmlString = await response.text();
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(xmlString, "application/xml");
     
-    const errorNode = xmlDoc.querySelector('error');
-    if (errorNode) {
-        const errorCode = errorNode.getAttribute('code');
-        const errorDesc = errorNode.getAttribute('description');
-        if (errorCode === '100') {
-             throw new Error('Invalid API Key. Please check your Jackett settings.');
-        }
-        throw new Error(`Jackett API Error: ${errorDesc} (Code: ${errorCode})`);
-    }
+    const data: Category[] = await response.json();
+    data.sort((a, b) => a.name.localeCompare(b.name));
+    return data;
 
-    const categoryNodes = xmlDoc.querySelectorAll('category');
-    const categories: Category[] = [];
-
-    categoryNodes.forEach(node => {
-      const parentId = node.getAttribute('id');
-      const parentName = node.getAttribute('name');
-      if (parentId && parentName) {
-        categories.push({ id: parentId, name: parentName });
-        const subcatNodes = node.querySelectorAll('subcat');
-        subcatNodes.forEach(subcatNode => {
-          const subId = subcatNode.getAttribute('id');
-          const subName = subcatNode.getAttribute('name');
-          if (subId && subName) {
-            categories.push({ id: subId, name: `${parentName} / ${subName}` });
-          }
-        });
-      }
-    });
-
-    categories.sort((a, b) => a.name.localeCompare(b.name));
-    return categories;
   } catch (error) {
-    console.error('Failed to fetch or parse categories:', error);
+    console.error('Failed to fetch or parse categories from Prowlarr:', error);
     throw handleFetchError(error);
   }
 };
 
-// FIX: Add missing 'testJackettConnection' function.
-// This function is imported by SettingsPanel.tsx but was not defined, causing a build error.
 export const testJackettConnection = async (baseUrl: string, apiKey: string): Promise<void> => {
+  // This function is kept for the unused SettingsPanel, updated for Prowlarr.
   if (!baseUrl || !apiKey) {
-    throw new Error('Jackett URL and API Key must be provided.');
+    throw new Error('Prowlarr URL and API Key must be provided.');
   }
 
   const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-  const url = `${cleanBaseUrl}/api/v2.0/indexers/all/results/torznab/api?t=caps&apikey=${apiKey}`;
+  const url = `${cleanBaseUrl}/api/v1/system/status`;
 
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { headers: getApiHeaders(apiKey) });
     if (!response.ok) {
+        if (response.status === 401) {
+            throw new Error('Invalid API Key.');
+        }
       throw new Error(`Connection test failed. Status: ${response.status}`);
     }
 
-    const xmlString = await response.text();
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(xmlString, 'application/xml');
-
-    const errorNode = xmlDoc.querySelector('error');
-    if (errorNode) {
-      const code = errorNode.getAttribute('code');
-      const description = errorNode.getAttribute('description');
-      if (code === '100') {
-        throw new Error('Invalid API Key.');
-      }
-      throw new Error(`Jackett API error: ${description} (Code: ${code})`);
+    const data = await response.json();
+    if (data.appName !== 'Prowlarr') {
+        throw new Error('Connected to an application, but it is not Prowlarr.');
     }
+    
   } catch (error) {
-    console.error('Failed to test Jackett connection:', error);
+    console.error('Failed to test Prowlarr connection:', error);
     if (error instanceof TypeError) {
-      // This often happens with CORS or network issues
       throw new Error(
-        'Network error or CORS issue. Check the browser console for more details. You may need to add this site\'s URL to the "CORS Whitelist" in your Jackett server settings.',
+        'Network error or CORS issue. Check the browser console and your Prowlarr CORS configuration if connecting directly.',
       );
     }
     throw handleFetchError(error);
   }
 };
-
-
-const PUBLIC_TRACKERS = [
-  'udp://tracker.openbittorrent.com:80',
-  'udp://tracker.opentrackr.org:1337/announce',
-  'udp://tracker.torrent.eu.org:451/announce',
-  'udp://open.tracker.cl:1337/announce',
-  'udp://p4p.arenabg.com:1337/announce',
-  'udp://tracker.dler.org:6969/announce',
-];
 
 export const searchTorrents = async (
   query: string,
@@ -116,45 +80,63 @@ export const searchTorrents = async (
   categoryId?: string
 ): Promise<TorrentResult[]> => {
   if (!apiKey) {
-    throw new Error('Jackett API Key must be provided.');
+    throw new Error('Prowlarr API Key must be provided.');
   }
   
-  // The URL is now a relative path, handled by the reverse proxy.
-  let url = `/api/api/v2.0/indexers/all/results?apikey=${apiKey}&Query=${encodeURIComponent(query)}`;
-
+  // Prowlarr API search endpoint. Proxied via /prowlarr/.
+  const params = new URLSearchParams({
+    query: query,
+    type: 'search',
+  });
+  
   if (categoryId) {
-    url += `&Category[]=${categoryId}`;
+    params.append('categories', categoryId);
   }
-  url += `&_=${Date.now()}`;
+
+  const url = `/prowlarr/api/v1/search?${params.toString()}`;
 
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { headers: getApiHeaders(apiKey) });
 
     if (!response.ok) {
       let errorMessage = `HTTP error! Status: ${response.status}`;
-      try {
-        const errorBody = await response.json();
-        errorMessage = errorBody.error || errorMessage;
-      } catch (e) {
-        // Response might not be JSON, stick with the status code message
+      if (response.status === 401) {
+        errorMessage = 'Invalid API Key provided.'
+      } else {
+        try {
+            const errorBody = await response.json();
+            errorMessage = errorBody.message || errorMessage;
+        } catch (e) {
+            // Response might not be JSON, stick with the status code message
+        }
       }
       throw new Error(errorMessage);
     }
 
     const data = await response.json();
-    const results: TorrentResult[] = (data.Results || []).map((result: TorrentResult) => {
-        if (!result.MagnetUri && result.InfoHash) {
-            const displayName = encodeURIComponent(result.Title);
-            const trackerQuery = PUBLIC_TRACKERS.map(tracker => `tr=${encodeURIComponent(tracker)}`).join('&');
-            result.MagnetUri = `magnet:?xt=urn:btih:${result.InfoHash}&dn=${displayName}&${trackerQuery}`;
-        }
-        return result;
-    });
+
+    // Map Prowlarr API response to our TorrentResult type, filtering for torrents only
+    const results: TorrentResult[] = (data || [])
+      .filter((result: any) => result.protocol === 'torrent')
+      .map((result: any): TorrentResult => ({
+        Id: result.id,
+        Tracker: result.indexer,
+        CategoryDesc: result.categories?.[0]?.name || 'N/A',
+        Title: result.title,
+        Link: result.downloadUrl,
+        Details: result.infoUrl,
+        MagnetUri: result.magnetUrl,
+        InfoHash: result.infoHash,
+        Size: result.size,
+        Seeders: result.seeders,
+        Peers: result.leechers, // Prowlarr uses 'leechers' for peers
+        PublishDate: result.publishDate,
+    }));
     
     return results;
 
   } catch (error) {
-    console.error('Failed to fetch from Jackett API:', error);
+    console.error('Failed to fetch from Prowlarr API:', error);
     throw handleFetchError(error);
   }
 };

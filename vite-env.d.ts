@@ -2,8 +2,7 @@
 // Manually defining the types for import.meta.env to resolve related type errors.
 
 interface ImportMetaEnv {
-  readonly VITE_JACKETT_URL?: string;
-  readonly VITE_JACKETT_API_KEY?: string;
+  readonly VITE_PROWLARR_API_KEY?: string;
 }
 
 interface ImportMeta {

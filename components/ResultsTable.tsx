@@ -190,7 +190,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
            return (
              <div className="text-center py-16 px-6 bg-slate-800/50 border border-dashed border-slate-700 rounded-lg">
                 <h3 className="text-xl font-semibold text-slate-300">Configuration Required</h3>
-                <p className="text-slate-500 mt-2">The Jackett API Key is missing. Please provide it via the `VITE_JACKETT_API_KEY` environment variable.</p>
+                <p className="text-slate-500 mt-2">The Prowlarr API Key is missing. Please provide it via the `VITE_PROWLARR_API_KEY` environment variable.</p>
                 <p className="text-slate-500 mt-1">Also, ensure your Nginx reverse proxy is configured correctly.</p>
             </div>
         );

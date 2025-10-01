@@ -7,12 +7,11 @@ import CategoryFilter from './components/CategoryFilter';
 import ProgressBar from './components/ProgressBar';
 import { LogoIcon } from './components/Icons';
 
-// Default Jackett configuration.
-// For a self-hosted or pre-configured setup, you can replace these placeholder values.
+// Default Prowlarr configuration.
 const DEFAULT_API_KEY = '';
 
 // Configuration is read from environment variables. The URL is now handled by a reverse proxy.
-const apiKey = import.meta.env?.VITE_JACKETT_API_KEY || DEFAULT_API_KEY;
+const apiKey = import.meta.env?.VITE_PROWLARR_API_KEY || DEFAULT_API_KEY;
 
 const App: React.FC = () => {
   const [query, setQuery] = useState<string>('');
@@ -44,7 +43,7 @@ const App: React.FC = () => {
           setCategories(fetchedCategories);
         } catch (error) {
           console.error("Failed to fetch categories:", error);
-          setError("Could not load categories from Jackett. Please check your server configuration and connection.");
+          setError("Could not load categories from Prowlarr. Please check your server configuration and connection.");
         }
       }
     };
@@ -53,7 +52,7 @@ const App: React.FC = () => {
 
   const handleSearch = useCallback(async () => {
     if (!areSettingsConfigured) {
-        setError('The Jackett API key is not configured. Please provide it via the VITE_JACKETT_API_KEY environment variable.');
+        setError('The Prowlarr API key is not configured. Please provide it via the VITE_PROWLARR_API_KEY environment variable.');
         return;
     }
     if (!query.trim()) {

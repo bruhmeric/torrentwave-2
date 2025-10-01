@@ -1,6 +1,6 @@
 # Torrent Wave
 
-A sleek and modern user interface to search for torrents using a Jackett backend.
+A sleek and modern user interface to search for torrents using a Prowlarr backend.
 
 ## Features
 
@@ -18,6 +18,7 @@ This application is a Single-Page Application (SPA) and is best served by a dedi
 - Node.js & npm (for building the app)
 - Git
 - Nginx installed and running on your VPS.
+- Docker and a running Prowlarr container.
 
 ### Deployment Steps
 
@@ -34,11 +35,11 @@ This application is a Single-Page Application (SPA) and is best served by a dedi
     npm run build
     ```
 
-3.  **Configure Jackett API Key:**
-    Create a `.env` file in the root of the project **before** building.
+3.  **Configure Prowlarr API Key:**
+    Create a `.env` file in the root of the project **before** building. This file tells the application which API key to use.
     ```ini
     # .env
-    VITE_JACKETT_API_KEY=your_jackett_api_key
+    VITE_PROWLARR_API_KEY=your_prowlarr_api_key
     ```
     If you change this key, you must run `npm run build` again.
 
@@ -69,16 +70,20 @@ This application is a Single-Page Application (SPA) and is best served by a dedi
             try_files $uri $uri/ /index.html;
         }
 
-        # Reverse proxy for Jackett API calls
-        # This securely forwards requests from your app to the Jackett container
-        location /api/ {
-            # Assuming Jackett is running on the same machine (localhost)
-            # and its port 9117 is mapped from the Docker container to the host.
-            proxy_pass http://127.0.0.1:9117/api/;
+        # Reverse proxy for Prowlarr API calls
+        # This securely forwards requests from your app to the Prowlarr container
+        location /prowlarr/ {
+            # IMPORTANT: This address should point to where your Prowlarr container is accessible
+            # from your Nginx server. '127.0.0.1:9696' is correct if your Docker container has
+            # port 9696 published to the host machine's localhost interface.
+            proxy_pass http://127.0.0.1:9696/;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "Upgrade";
         }
     }
     ```
@@ -96,14 +101,39 @@ This application is a Single-Page Application (SPA) and is best served by a dedi
 
 Your application should now be live on `http://your_domain.com`.
 
-**Security Note:** With this setup, you can and should configure your VPS firewall (e.g., `ufw`) to block all incoming connections on port `9117`. This ensures your Jackett instance is not exposed to the public internet and can only be accessed through your web application's secure proxy.
+### Troubleshooting
+
+#### 500 Internal Server Error (on API calls)
+
+This almost always means Nginx cannot communicate with your Prowlarr container at the `proxy_pass` address.
+
+1.  **Confirm Prowlarr is running:**
+    ```bash
+    docker ps
+    ```
+    Make sure your Prowlarr container is listed and has a port mapping like `127.0.0.1:9696->9696/tcp` under the `PORTS` column.
+
+2.  **Test the connection from your server:**
+    Run this command on your VPS:
+    ```bash
+    curl http://127.0.0.1:9696
+    ```
+    - If you get HTML back, the connection is working.
+    - If you get `Connection refused` or the command hangs, Prowlarr is not accessible at that address.
+
+3.  **The Fix:**
+    Ensure your `docker run` command for Prowlarr correctly publishes the port. Use the `-p` flag to map the host's port to the container's port. For better security, bind it to localhost:
+    ```bash
+    docker run ... -p 127.0.0.1:9696:9696 ... <prowlarr_image_name>
+    ```
+    If you have to restart your Prowlarr container with the correct port mapping, no changes are needed to Nginx.
 
 ## Development
 
 To run the application in development mode:
 
 1.  Follow steps 1 and 3 from the deployment guide.
-2.  The Vite development server already includes a proxy configuration in `vite.config.ts` that mimics the production Nginx setup. It will forward `/api` requests to `http://localhost:9117`.
+2.  The Vite development server includes a proxy configuration in `vite.config.ts`. It will forward `/prowlarr` requests to `http://localhost:9696`.
 3.  Run the development server:
     ```bash
     npm run dev
